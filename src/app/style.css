@@ -1,0 +1,66 @@
+/* Minimal, focused styling for a clean Connect Four UI */
+
+:root {
+  --board-columns: 7;
+  --board-rows: 6;
+  --cell-size: 56px;
+  --cells-gap: 10px;
+  --primary-blue: #0a84ff;
+}
+
+/* Start at top: hide Streamlit header and remove top padding/margins */
+header[data-testid="stHeader"] { display: none !important; height: 0 !important; }
+.stApp, .appview-container, .main .block-container { padding-top: 0 !important; margin-top: 0 !important; }
+.main .block-container > :first-child { margin-top: 0 !important; }
+
+/* Board container */
+.board-bg {
+  background: linear-gradient(135deg, #0b3d91, #062a5e);
+  padding: 16px;
+  border-radius: 16px;
+  margin: 8px 0 16px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+}
+
+/* Board cells: circular, 3D look, emoji-centered */
+.board-bg .stButton>button {
+  border-radius: 50% !important;
+  width: calc(var(--cell-size) - 12px) !important;
+  height: calc(var(--cell-size) - 12px) !important;
+  padding: 0 !important;
+  font-size: 22px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: radial-gradient(circle at 30% 25%, rgba(255,255,255,0.18), rgba(255,255,255,0.04) 35%, rgba(0,0,0,0.12) 100%) !important;
+  box-shadow: 0 10px 22px rgba(0,0,0,0.45), inset 0 6px 10px rgba(255,255,255,0.06) !important;
+  transition: transform 120ms ease;
+}
+.board-bg .stButton>button:hover { transform: scale(1.06); }
+.board-bg .stButton>button:active { transform: scale(0.96); }
+
+/* Primary action buttons (Start / New Game) */
+.primary-btn .stButton>button, .panel .stButton>button {
+  background: var(--primary-blue) !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: 10px !important;
+  padding: 10px 18px !important;
+  font-weight: 700 !important;
+  box-shadow: 0 6px 16px rgba(10,132,255,0.35) !important;
+  transition: filter 120ms ease, transform 80ms ease;
+}
+.primary-btn .stButton>button:hover, .panel .stButton>button:hover {
+  filter: brightness(1.06);
+  transform: translateY(-1px);
+}
+
+/* Lightweight panels */
+.panel { padding: 12px; border-radius: 12px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08); }
+.panel-title { font-weight: 700; margin-bottom: 8px; }
+
+/* Compact expander header */
+.stExpander > .stExpanderHeader { font-weight: 600 !important; }
+
+/* Tighter gutters inside board container */
+.board-bg .element-container { margin: 0 !important; }
