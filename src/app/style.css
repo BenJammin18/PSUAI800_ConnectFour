@@ -1,66 +1,118 @@
 /* Minimal, focused styling for a clean Connect Four UI */
 
-:root {
-  --board-columns: 7;
-  --board-rows: 6;
-  --cell-size: 56px;
-  --cells-gap: 10px;
-  --primary-blue: #0a84ff;
+/* Google-like dark mode: consistent surfaces and text */
+:root{
+  --g-bg:#0b1218;
+  --g-surface:#121a23;
+  --g-surface-2:#0f171f;
+  --g-on:#e6edf3;
+  --g-muted:#a8b3bd;
+  --g-primary:#8ab4f8;
+  --g-outline:rgba(255,255,255,0.12);
+  --cell-size:56px;
+  --board-gap: 10px;
 }
 
-/* Start at top: hide Streamlit header and remove top padding/margins */
-header[data-testid="stHeader"] { display: none !important; height: 0 !important; }
-.stApp, .appview-container, .main .block-container { padding-top: 0 !important; margin-top: 0 !important; }
-.main .block-container > :first-child { margin-top: 0 !important; }
+/* Base */
+.stApp, .block-container{ background: var(--g-bg) !important; color: var(--g-on) !important; }
+
+/* Typography and labels */
+label, .stMarkdown label, .panel-title, .stExpander > .stExpanderHeader p, .stCaption, .stMarkdown, .stText{ color: var(--g-on) !important; }
+
+/* Panels and expanders */
+.panel{ background: var(--g-surface) !important; border:1px solid var(--g-outline) !important; border-radius:12px !important; box-shadow:0 1px 2px rgba(0,0,0,0.4) !important; }
+.stExpander{ background: var(--g-surface) !important; border:1px solid var(--g-outline) !important; border-radius:12px !important; }
+.stExpander > .stExpanderHeader{ font-weight:700 !important; }
+
+/* Inputs (unified) */
+.stSelectbox div[data-baseweb], .stNumberInput div[data-baseweb], .stCheckbox div[data-baseweb], .stSlider div[data-baseweb]{ background: var(--g-surface-2) !important; border:1px solid var(--g-outline) !important; border-radius:10px !important; color: var(--g-on) !important; }
+.stSelectbox div[data-baseweb] *, .stNumberInput div[data-baseweb] *, .stCheckbox div[data-baseweb] *, .stSlider div[data-baseweb] *{ color: var(--g-on) !important; }
+
+/* Buttons */
+.primary-btn .stButton>button, .panel .stButton>button{ background: var(--g-primary) !important; color:#0b1116 !important; border:none !important; border-radius:10px !important; padding:10px 16px !important; font-weight:700 !important; }
+.stButton>button{ background: var(--g-surface-2) !important; color: var(--g-on) !important; border:1px solid var(--g-outline) !important; border-radius:10px !important; }
 
 /* Board container */
-.board-bg {
-  background: linear-gradient(135deg, #0b3d91, #062a5e);
-  padding: 16px;
-  border-radius: 16px;
-  margin: 8px 0 16px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.35);
-}
+.board-scope{ background:#0c141c; padding:18px; border-radius:20px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 24px 60px rgba(0,0,0,0.5); }
 
-/* Board cells: circular, 3D look, emoji-centered */
-.board-bg .stButton>button {
+/* Drops */
+.board-scope button[help="drop"]{ width: calc(var(--cell-size) - 22px) !important; height: 26px !important; border-radius: 10px !important; background: #15212d !important; color:#dbe6ee !important; border: 1px solid rgba(255,255,255,0.08) !important; box-shadow: 0 6px 16px rgba(0,0,0,0.45) !important; }
+
+/* Cells */
+.board-scope button[help^="cell-"]{ position:relative; width: var(--cell-size) !important; height: var(--cell-size) !important; min-width: 0 !important; min-height: 0 !important; aspect-ratio: 1 / 1 !important; border-radius: 50% !important; margin: 6px auto !important; padding: 0 !important; box-shadow: 0 16px 40px rgba(0,0,0,0.6), inset 0 6px 10px rgba(255,255,255,0.08) !important; }
+.board-scope button[help="cell-empty"]{ background: radial-gradient(circle at 30% 30%, #1a2a3a, #0e1a26 45%, #0a141d 75%) !important; border: 1px solid rgba(255,255,255,0.06) !important; }
+.board-scope button[help~="cell-p1"]{ background: radial-gradient(circle at 30% 25%, #ff9a9a, #e63737 55%, #a61717 85%) !important; }
+.board-scope button[help~="cell-p2"]{ background: radial-gradient(circle at 30% 25%, #fff2a8, #f9cf45 55%, #d19e0e 85%) !important; }
+.board-scope button[help~="win"]{ box-shadow: 0 0 0 3px rgba(16,185,129,0.8) inset, 0 16px 40px rgba(0,0,0,0.6) !important; }
+.board-scope button[help~="last"]{ box-shadow: 0 0 0 3px rgba(148,163,184,0.6) inset, 0 16px 40px rgba(0,0,0,0.6) !important; }
+
+/* Enforce perfectly round board cells */
+.board-scope button[help^="cell-"]{ border-radius: 999px !important; }
+.board-scope button[help="drop"]{ border-radius: 10px !important; }
+
+/* General spacing */
+.block-container > div{ margin-bottom: 12px; }
+
+/* Subtle captions */
+.stCaption, .stMarkdown small{ color: var(--g-muted) !important; }
+
+/* Board layout wrappers */
+.board-scope .element-container{ margin: 0 !important; padding: 0 !important; }
+.board-scope .grid .stButton>button{
+  width: var(--cell-size) !important;
+  height: var(--cell-size) !important;
+  aspect-ratio: 1 / 1 !important;
   border-radius: 50% !important;
-  width: calc(var(--cell-size) - 12px) !important;
-  height: calc(var(--cell-size) - 12px) !important;
   padding: 0 !important;
-  font-size: 22px !important;
-  display: flex !important;
+  margin: calc(var(--board-gap) / 2) auto !important;
+  display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
-  background: radial-gradient(circle at 30% 25%, rgba(255,255,255,0.18), rgba(255,255,255,0.04) 35%, rgba(0,0,0,0.12) 100%) !important;
-  box-shadow: 0 10px 22px rgba(0,0,0,0.45), inset 0 6px 10px rgba(255,255,255,0.06) !important;
-  transition: transform 120ms ease;
-}
-.board-bg .stButton>button:hover { transform: scale(1.06); }
-.board-bg .stButton>button:active { transform: scale(0.96); }
-
-/* Primary action buttons (Start / New Game) */
-.primary-btn .stButton>button, .panel .stButton>button {
-  background: var(--primary-blue) !important;
-  color: #fff !important;
   border: none !important;
+  outline: none !important;
+  background: radial-gradient(circle at 30% 30%, #1a2a3a, #0e1a26 45%, #0a141d 75%) !important;
+  box-shadow: 0 16px 40px rgba(0,0,0,0.6), inset 0 6px 10px rgba(255,255,255,0.08) !important;
+  color: #ffd166 !important; /* emoji inherit color; keep readable */
+  font-size: 26px !important;
+  line-height: 1 !important;
+}
+.board-scope .grid .stButton>button:hover{ filter: brightness(1.06); }
+.board-scope .grid .stButton>button:empty::after{ content: ""; }
+
+/* Drop row controls */
+.board-scope .drop-row .stButton>button{
+  width: calc(var(--cell-size) - 22px) !important;
+  height: 28px !important;
   border-radius: 10px !important;
-  padding: 10px 18px !important;
-  font-weight: 700 !important;
-  box-shadow: 0 6px 16px rgba(10,132,255,0.35) !important;
-  transition: filter 120ms ease, transform 80ms ease;
+  background: #15212d !important;
+  color:#dbe6ee !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.45) !important;
 }
-.primary-btn .stButton>button:hover, .panel .stButton>button:hover {
-  filter: brightness(1.06);
-  transform: translateY(-1px);
+.board-scope .grid > div{ margin-bottom: calc(var(--board-gap) / 2) !important; }
+
+/* Ensure columns have even inner spacing */
+.board-scope .grid .stColumns{ gap: var(--board-gap) !important; }
+.board-scope .grid .stColumn{ padding-left: calc(var(--board-gap)/2) !important; padding-right: calc(var(--board-gap)/2) !important; }
+
+/* Remove any default border/background that makes circles look squared */
+.board-scope .grid .stButton>button{ border: none !important; background-clip: padding-box !important; }
+
+/* Circular cell styling including disabled buttons */
+.board-scope .grid .stButton>button[disabled]{
+  width: var(--cell-size) !important;
+  height: var(--cell-size) !important;
+  aspect-ratio: 1/1 !important;
+  border-radius: 50% !important;
+  padding: 0 !important;
+  margin: calc(var(--board-gap) / 2) auto !important;
+  border: none !important;
 }
+.board-scope .grid .stButton>button[disabled][help~="cell-empty"]{ background: radial-gradient(circle at 30% 30%, #1a2a3a, #0e1a26 45%, #0a141d 75%) !important; box-shadow: inset 0 6px 10px rgba(255,255,255,0.08), 0 6px 16px rgba(0,0,0,0.4) !important; }
+.board-scope .grid .stButton>button[disabled][help~="cell-p1"]{ background: radial-gradient(circle at 30% 25%, #ff9a9a, #e63737 55%, #a61717 85%) !important; }
+.board-scope .grid .stButton>button[disabled][help~="cell-p2"]{ background: radial-gradient(circle at 30% 25%, #fff2a8, #f9cf45 55%, #d19e0e 85%) !important; }
+.board-scope .grid .stButton>button[disabled][help~="win"]{ box-shadow: 0 0 0 3px rgba(16,185,129,0.8) inset, 0 16px 40px rgba(0,0,0,0.6) !important; }
+.board-scope .grid .stButton>button[disabled][help~="last"]{ box-shadow: 0 0 0 3px rgba(148,163,184,0.6) inset, 0 16px 40px rgba(0,0,0,0.6) !important; }
 
-/* Lightweight panels */
-.panel { padding: 12px; border-radius: 12px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08); }
-.panel-title { font-weight: 700; margin-bottom: 8px; }
-
-/* Compact expander header */
-.stExpander > .stExpanderHeader { font-weight: 600 !important; }
-
-/* Tighter gutters inside board container */
-.board-bg .element-container { margin: 0 !important; }
+/* Ensure disabled token visibility against dark background */
+.board-scope .grid .stButton>button[disabled]{ opacity: 1 !important; filter: none !important; }
