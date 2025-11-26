@@ -15,7 +15,7 @@ DEFAULT_PARAMS = {
         "time_limit": 0.7,
     },
     "q_learning": {
-        "enabled": False,
+        "enabled": True,
         "alpha": 0.1,
         "gamma": 0.99,
         "epsilon": 0.1,
