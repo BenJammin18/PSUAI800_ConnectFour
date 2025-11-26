@@ -540,11 +540,10 @@ with st.expander("Configurations", expanded=True):
                 p2_type=("human" if p2_sel == "Human" else "program"),
             )
 
-## Early AI first move if autoplay and program starts
+## Auto-execute AI moves when it's an AI player's turn
 if (
     st.session_state.autoplay_ai
     and st.session_state.player_types.get(st.session_state.player) == "program"
-    and st.session_state.move_id == 0
     and not st.session_state.game_over
 ):
     make_ai_move()
@@ -680,3 +679,12 @@ with right_p:
     else:
         st.info("No AI strategy selected")
     st.markdown("</div>", unsafe_allow_html=True)
+
+## Trigger next AI move after board is rendered (for AI vs AI)
+if (
+    st.session_state.autoplay_ai
+    and st.session_state.player_types.get(st.session_state.player) == "program"
+    and not st.session_state.game_over
+):
+    time.sleep(0.5)  # Brief pause so user can see the current board state
+    st.rerun()
