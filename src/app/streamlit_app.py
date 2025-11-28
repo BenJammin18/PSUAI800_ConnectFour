@@ -1,8 +1,10 @@
 import sys
 from pathlib import Path as _Path
+
 # Ensure Streamlit and utilities are imported
 import streamlit as st
 import random
+import time
 from pathlib import Path
 import importlib
 
@@ -25,6 +27,26 @@ try:
     from src.ai import rl_agent as ai_qlearning
 except Exception:
     ai_qlearning = None
+
+
+def _persist_q_learning():
+    """Persist Q-table if Q-learning was active and enabled when game ends."""
+    try:
+        if ai_qlearning is None:
+            return
+        s = st.session_state
+        if s.get("ai_policy_choice") != "q_learning":
+            return
+        params = s.ai_params.get("q_learning", {})
+        if not params.get("enabled"):
+            return
+        save_fn = getattr(ai_qlearning, "save_q_table", None)
+        if callable(save_fn):
+            save_fn()
+            s["q_learning_last_saved"] = time.time()
+    except Exception:
+        # Silent failure to avoid disrupting UI
+        pass
 
 
 def reload_ai_modules():
@@ -63,7 +85,10 @@ def ensure_state():
         "board" not in s
         or not isinstance(s.board, list)
         or len(s.board) != s.rows
-        or (s.rows > 0 and (not isinstance(s.board[0], list) or len(s.board[0]) != s.cols))
+        or (
+            s.rows > 0
+            and (not isinstance(s.board[0], list) or len(s.board[0]) != s.cols)
+        )
     ):
         s.board = new_board(s.rows, s.cols)
     s.setdefault("player", 1)
@@ -73,11 +98,15 @@ def ensure_state():
     s.setdefault("move_id", 0)
     s.setdefault("last_move_cell", None)
     s.setdefault("player_types", {1: "human", 2: "program"})
-    s.setdefault("ai_strategies", ["minimax_ab", "mcts", "q_learning"])  # order = preference
+    s.setdefault(
+        "ai_strategies", ["minimax_ab", "mcts", "q_learning"]
+    )  # order = preference
     if "ai_params" not in s:
         s.ai_params = default_params_copy()
     s.setdefault("difficulty", "medium")
-    s.setdefault("last_applied_difficulty", s["difficulty"])  # track last applied preset
+    s.setdefault(
+        "last_applied_difficulty", s["difficulty"]
+    )  # track last applied preset
     # Initialize AI status keys
     s.setdefault("ai_thinking", False)
     s.setdefault("ai_policy_choice", None)
@@ -88,9 +117,16 @@ def new_board(rows, cols):
     return [[0 for _ in range(cols)] for _ in range(rows)]
 
 
-def reset_game(rows, cols, win_len, gravity, start_player=1, p1_type=None, p2_type=None):
+def reset_game(
+    rows, cols, win_len, gravity, start_player=1, p1_type=None, p2_type=None
+):
     s = st.session_state
-    s.rows, s.cols, s.win_len, s.gravity = int(rows), int(cols), int(win_len), bool(gravity)
+    s.rows, s.cols, s.win_len, s.gravity = (
+        int(rows),
+        int(cols),
+        int(win_len),
+        bool(gravity),
+    )
     s.board = new_board(s.rows, s.cols)
     s.player = int(start_player)
     s.game_over = False
@@ -183,6 +219,7 @@ def cell_display_val(v, is_winning, is_last):
 
 ## AI Player helpers
 
+
 def _try_call(module, names, *args, **kwargs):
     if module is None:
         return None
@@ -210,17 +247,29 @@ def _has_api(module, names):
 def _strategy_available(strat):
     s = st.session_state
     if strat in ("mcts", "mcts_uct"):
-        return ai_mcts is not None and any(callable(getattr(ai_mcts, n, None)) for n in ["get_move", "uct_search", "search", "MCTS"])
+        return ai_mcts is not None and any(
+            callable(getattr(ai_mcts, n, None))
+            for n in ["get_move", "uct_search", "search", "MCTS"]
+        )
     if strat == "minimax_ab":
         if ai_minmax is None:
             return False
-        if any(callable(getattr(ai_minmax, n, None)) for n in ["get_move", "best_move"]):
+        if any(
+            callable(getattr(ai_minmax, n, None)) for n in ["get_move", "best_move"]
+        ):
             return True
         # Class API
         cls = getattr(ai_minmax, "Minimax", None)
         return cls is not None
     if strat == "q_learning":
-        return ai_qlearning is not None and any(callable(getattr(ai_qlearning, n, None)) for n in ["get_move", "policy_move", "act"]) and s.ai_params.get("q_learning", {}).get("enabled")
+        return (
+            ai_qlearning is not None
+            and any(
+                callable(getattr(ai_qlearning, n, None))
+                for n in ["get_move", "policy_move", "act"]
+            )
+            and s.ai_params.get("q_learning", {}).get("enabled")
+        )
     return False
 
 
@@ -278,11 +327,15 @@ def get_ai_move(board, player, gravity):
             "gravity": s.gravity,
             "time_limit": tlimit,
         }
-        mv = _try_call(ai_mcts, ["get_move", "uct_search", "search"], board, player, mcts_params)
+        mv = _try_call(
+            ai_mcts, ["get_move", "uct_search", "search"], board, player, mcts_params
+        )
         if mv is not None:
             return mv
     if strat == "q_learning" and ai_qlearning is not None:
-        mv = _try_call(ai_qlearning, ["get_move", "policy_move", "act"], board, player, params)
+        mv = _try_call(
+            ai_qlearning, ["get_move", "policy_move", "act"], board, player, params
+        )
         if mv is not None:
             return mv
     moves = legal_moves(board, gravity)
@@ -310,16 +363,19 @@ def make_ai_move():
         s.game_over = True
         s.winner = winner
         s.winning_cells = cells
+        _persist_q_learning()
     else:
         full = all(s.board[rr][cc] != 0 for rr in range(s.rows) for cc in range(s.cols))
         if full:
             s.game_over = True
             s.winner = 0
+            _persist_q_learning()
         else:
             s.player = 2 if s.player == 1 else 1
 
 
 ## Interaction for Game play
+
 
 def place_token(col, row=None):
     ensure_state()
@@ -340,19 +396,21 @@ def place_token(col, row=None):
         s.game_over = True
         s.winner = winner
         s.winning_cells = cells
+        _persist_q_learning()
         return
     full = all(board[rr][cc] != 0 for rr in range(s.rows) for cc in range(s.cols))
     if full:
         s.game_over = True
         s.winner = 0
+        _persist_q_learning()
         return
     s.player = 2 if player == 1 else 1
     if s.autoplay_ai and s.player_types.get(s.player) == "program":
         make_ai_move()
 
 
-
 ## Styling
+
 
 def apply_board_css():
     s = st.session_state
@@ -365,7 +423,6 @@ def apply_board_css():
     st.markdown(f"<style>{css_vars}</style>", unsafe_allow_html=True)
 
 
-
 ## UI
 
 st.set_page_config(page_title="Connect Game", layout="wide")
@@ -375,7 +432,10 @@ st.title("Connect Game — Classic Style")
 css_path = Path(__file__).parent / "style.css"
 if css_path.exists():
     try:
-        st.markdown(f"<style>{css_path.read_text(encoding='utf-8')}</style>", unsafe_allow_html=True)
+        st.markdown(
+            f"<style>{css_path.read_text(encoding='utf-8')}</style>",
+            unsafe_allow_html=True,
+        )
     except Exception:
         pass
 
@@ -389,20 +449,44 @@ with st.expander("Configurations", expanded=True):
     with left:
         rows = st.number_input("Rows", 4, 12, st.session_state.rows, 1)
         cols = st.number_input("Columns", 4, 12, st.session_state.cols, 1)
-        win_len = st.selectbox("Win condition (connect)", [4, 5], index=0 if st.session_state.win_len == 4 else 1)
+        win_len = st.selectbox(
+            "Win condition (connect)",
+            [4, 5],
+            index=0 if st.session_state.win_len == 4 else 1,
+        )
         gravity = st.checkbox("Gravity (classic drop)", value=st.session_state.gravity)
-        first_player = st.selectbox("First player", ["Red (1)", "Yellow (2)"], index=0 if st.session_state.player == 1 else 1)
+        first_player = st.selectbox(
+            "First player",
+            ["Red (1)", "Yellow (2)"],
+            index=0 if st.session_state.player == 1 else 1,
+        )
         start_player = 1 if first_player.startswith("Red") else 2
         # Difficulty
-        difficulty = st.selectbox("Difficulty", ["easy", "medium", "hard", "extreme"], index=["easy","medium","hard","extreme"].index(st.session_state.get("difficulty","medium")))
+        difficulty = st.selectbox(
+            "Difficulty",
+            ["easy", "medium", "hard", "extreme"],
+            index=["easy", "medium", "hard", "extreme"].index(
+                st.session_state.get("difficulty", "medium")
+            ),
+        )
         st.session_state.difficulty = difficulty
         # Apply preset immediately if difficulty changed
         if st.session_state.difficulty != st.session_state.last_applied_difficulty:
-            st.session_state.ai_params = params_for_difficulty(st.session_state.difficulty)
+            st.session_state.ai_params = params_for_difficulty(
+                st.session_state.difficulty
+            )
             st.session_state.last_applied_difficulty = st.session_state.difficulty
     with right:
-        p1_sel = st.selectbox("Player 1 (Red)", ["Human", "AI"], index=0 if st.session_state.player_types.get(1)=="human" else 1)
-        p2_sel = st.selectbox("Player 2 (Yellow)", ["Human", "AI"], index=0 if st.session_state.player_types.get(2)=="human" else 1)
+        p1_sel = st.selectbox(
+            "Player 1 (Red)",
+            ["Human", "AI"],
+            index=0 if st.session_state.player_types.get(1) == "human" else 1,
+        )
+        p2_sel = st.selectbox(
+            "Player 2 (Yellow)",
+            ["Human", "AI"],
+            index=0 if st.session_state.player_types.get(2) == "human" else 1,
+        )
         # Apply player type selections immediately
         st.session_state.player_types[1] = "human" if p1_sel == "Human" else "program"
         st.session_state.player_types[2] = "human" if p2_sel == "Human" else "program"
@@ -416,27 +500,52 @@ with st.expander("Configurations", expanded=True):
             options.append("q_learning")
         if not options:
             options = ["mcts"]
-        cur_pref = st.session_state.ai_strategies[0] if st.session_state.ai_strategies else options[0]
+        cur_pref = (
+            st.session_state.ai_strategies[0]
+            if st.session_state.ai_strategies
+            else options[0]
+        )
         if cur_pref == "mcts_uct":
             cur_pref = "mcts"
-        pref = st.selectbox("AI strategy", options, index=options.index(cur_pref) if cur_pref in options else 0)
+        pref = st.selectbox(
+            "AI strategy",
+            options,
+            index=options.index(cur_pref) if cur_pref in options else 0,
+        )
         st.session_state.ai_strategies = [pref] + [x for x in options if x != pref]
-        autoplay = st.checkbox("Autoplay AI moves", value=st.session_state.get("autoplay_ai", True), key="autoplay_ai")
+        # Show info if Q-learning selected but not available at current difficulty
+        if pref == "q_learning" and pref not in options:
+            st.info("ℹ️ Q-Learning requires Hard or Extreme difficulty")
+        # Autoplay control
+        autoplay = st.checkbox(
+            "Autoplay AI moves",
+            value=st.session_state.get("autoplay_ai", True),
+            key="autoplay_ai",
+        )
         st.markdown('<div class="primary-btn">', unsafe_allow_html=True)
         start = st.button("Start", key="start_btn")
         new = st.button("New Game", key="new_btn")
-        st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
         if start or new:
-            st.session_state.ai_params = params_for_difficulty(st.session_state.difficulty)
-            reset_game(rows, cols, win_len, gravity, start_player,
-                       p1_type=("human" if p1_sel == "Human" else "program"),
-                       p2_type=("human" if p2_sel == "Human" else "program"))
+            st.session_state.ai_params = params_for_difficulty(
+                st.session_state.difficulty
+            )
+            reset_game(
+                rows,
+                cols,
+                win_len,
+                gravity,
+                start_player,
+                p1_type=("human" if p1_sel == "Human" else "program"),
+                p2_type=("human" if p2_sel == "Human" else "program"),
+            )
 
 ## Early AI first move if autoplay and program starts
 if (
-    st.session_state.autoplay_ai and
-    st.session_state.player_types.get(st.session_state.player) == "program" and
-    st.session_state.move_id == 0 and not st.session_state.game_over
+    st.session_state.autoplay_ai
+    and st.session_state.player_types.get(st.session_state.player) == "program"
+    and st.session_state.move_id == 0
+    and not st.session_state.game_over
 ):
     make_ai_move()
 
@@ -451,7 +560,7 @@ if st.session_state.gravity:
         with drop_cols[ci]:
             if st.button("⬇", key=f"drop_{ci}_{st.session_state.move_id}"):
                 place_token(ci)
-st.markdown('</div>', unsafe_allow_html=True)
+st.markdown("</div>", unsafe_allow_html=True)
 
 ## Grid
 st.markdown('<div class="grid">', unsafe_allow_html=True)
@@ -469,7 +578,11 @@ for r in range(rows_n):
             is_last = (r, c) == tuple(last) if last else False
             disp = cell_display_val(board[r][c], is_win, is_last)
             key = f"cell_{r}_{c}_{st.session_state.move_id}"
-            base_tag = "cell-empty" if board[r][c] == 0 else ("cell-p1" if board[r][c] == 1 else "cell-p2")
+            base_tag = (
+                "cell-empty"
+                if board[r][c] == 0
+                else ("cell-p1" if board[r][c] == 1 else "cell-p2")
+            )
             if is_win:
                 base_tag += " win"
             if is_last:
@@ -485,30 +598,40 @@ for r in range(rows_n):
                     # Occupied cell shown as disabled token
                     st.button(disp, key=key, help=base_tag, disabled=True)
 
-st.markdown('</div>', unsafe_allow_html=True)
+st.markdown("</div>", unsafe_allow_html=True)
 
 # End board scope wrapper
-st.markdown('</div>', unsafe_allow_html=True)
+st.markdown("</div>", unsafe_allow_html=True)
 
 ## Status panels
 left_p, right_p = st.columns(2)
 with left_p:
-    st.markdown('<div class="panel"><div class="panel-title">Game Status</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="panel"><div class="panel-title">Game Status</div>',
+        unsafe_allow_html=True,
+    )
     if st.session_state.game_over:
         if st.session_state.winner == 0:
             st.success("Game over: Tie!")
         else:
-            st.success("Game over: Red (1) wins!" if st.session_state.winner == 1 else "Game over: Yellow (2) wins!")
+            st.success(
+                "Game over: Red (1) wins!"
+                if st.session_state.winner == 1
+                else "Game over: Yellow (2) wins!"
+            )
     else:
-        badge = 'Red (1)' if st.session_state.player == 1 else 'Yellow (2)'
+        badge = "Red (1)" if st.session_state.player == 1 else "Yellow (2)"
         st.info(f"Current turn: {badge}")
     if st.session_state.last_move_cell:
         rr, cc = st.session_state.last_move_cell
-        st.caption(f"Last move: row {rr+1}, col {cc+1}")
+        st.caption(f"Last move: row {rr + 1}, col {cc + 1}")
     st.caption(f"Moves made: {st.session_state.move_id}")
-    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 with right_p:
-    st.markdown('<div class="panel"><div class="panel-title">AI Config</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="panel"><div class="panel-title">AI Config</div>',
+        unsafe_allow_html=True,
+    )
     strat = st.session_state.ai_policy_choice
     st.caption(f"Strategy selected: {strat}")
     if st.session_state.get("last_ai_error"):
@@ -520,8 +643,40 @@ with right_p:
             st.info("Using AI: Minimax with Alpha-Beta Pruning")
         elif strat == "q_learning":
             st.info("Using AI: Q-Learning")
+            # Reset controls first, then show stats so updates reflect immediately
+            if ai_qlearning is not None:
+                try:
+                    reset_col, clear_col = st.columns(2)
+                    with reset_col:
+                        if st.button("Reset RL Stats", key="reset_rl_stats"):
+                            reset_fn = getattr(ai_qlearning, "reset_stats", None)
+                            if callable(reset_fn):
+                                reset_fn(clear_q_table=False)
+                                st.success("RL decision counters reset.")
+                    with clear_col:
+                        if st.button("Clear Q-Table", key="clear_q_table"):
+                            reset_fn = getattr(ai_qlearning, "reset_stats", None)
+                            if callable(reset_fn):
+                                reset_fn(clear_q_table=True)
+                                st.warning("Q-table cleared (learning memory wiped).")
+                    # Now display Q-Learning stats
+                    get_stats_fn = getattr(ai_qlearning, "get_stats", None)
+                    if callable(get_stats_fn):
+                        stats = get_stats_fn()
+                        qsz = stats.get("q_table_size", 0)
+                        d = stats.get("decisions", {})
+                        st.caption(f"Q-table entries: {qsz}")
+                        st.caption(
+                            f"Decisions — tactic: {d.get('tactic', 0)}, explore: {d.get('explore', 0)}, exploit: {d.get('exploit', 0)}, fallback: {d.get('fallback', 0)}"
+                        )
+                    # Flash save banner if recently persisted
+                    saved_ts = st.session_state.get("q_learning_last_saved")
+                    if saved_ts and (time.time() - saved_ts) < 6:  # show ~6s
+                        st.success("Q-table saved ✅")
+                except Exception:
+                    pass
         else:
             st.info("AI strategy not recognized")
     else:
         st.info("No AI strategy selected")
-    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
